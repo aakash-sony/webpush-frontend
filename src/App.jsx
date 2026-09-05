@@ -70,6 +70,7 @@ function App() {
           </main>
           <Footer />
         </div>
+        <Analytics />
       </Router>
     </AuthProvider>
   );
