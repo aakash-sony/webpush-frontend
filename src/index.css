@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
+  --bg-dark-base: #090d16;
+  --bg-dark-card: rgba(15, 23, 42, 0.85);
+  --bg-dark-input: #0f172a;
+  --border-glass: rgba(255, 255, 255, 0.12);
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+  --glow-color: rgba(99, 102, 241, 0.25);
+  
+  /* Text Contrast Color Tokens */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted-custom: #94a3b8;
+}
+
+body {
+  font-family: var(--font-family-sans);
+  background-color: var(--bg-dark-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-wrapper {
+  background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.12), transparent 45%),
+              radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.12), transparent 45%),
+              linear-gradient(180deg, #090d16 0%, #0b1120 100%);
+}
+
+.font-monospace {
+  font-family: var(--font-family-mono) !important;
+}
+
+/* Custom Height Utility */
+.max-vh-30 {
+  max-height: 30vh;
+}
+
+/* Typography & Contrast Overrides */
+.text-secondary {
+  color: var(--text-muted-custom) !important;
+}
+
+.text-muted {
+  color: var(--text-muted-custom) !important;
+}
+
+.text-slate-100 {
+  color: #f8fafc !important;
+}
+
+.text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+.text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+.text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Glassmorphism Styles */
+.glass-card {
+  background: var(--bg-dark-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-navbar {
+  background: rgba(9, 13, 22, 0.9) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Gradient Text */
+.text-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glow Effect */
+.glow-effect {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 180px;
+  height: 180px;
+  background: var(--glow-color);
+  filter: blur(55px);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Micro Animations */
+.bounce-anim {
+  animation: floatBounce 4s ease-in-out infinite;
+}
+
+@keyframes floatBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.transition-all {
+  transition: all 0.25s ease-in-out;
+}
+
+/* Form Controls & High-Contrast Customization */
+.form-control, .form-select {
+  background-color: var(--bg-dark-input) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid #334155 !important;
+}
+
+.form-control::placeholder {
+  color: #94a3b8 !important;
+  opacity: 0.8;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.3) !important;
+}
+
+.form-check-input {
+  background-color: #1e293b;
+  border-color: #475569;
+  cursor: pointer;
+}
+
+.form-check-input:checked {
+  background-color: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+.form-check-input:focus {
+  box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+}
+
+/* Selection Cards & Workflow UI */
+.selection-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.selection-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.selection-card.selected {
+  background: rgba(99, 102, 241, 0.12) !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+}
+
+/* Table Customizations */
+.table-dark {
+  --bs-table-bg: transparent;
+  --bs-table-color: #cbd5e1;
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
+}
+
+.table-dark th {
+  color: #cbd5e1;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
