@@ -46,3 +46,13 @@ export const updateScheduleStatus = async (id, active) => {
   });
   return response.data;
 };
+
+/**
+ * Delete a notification schedule by ID.
+ * @param {string|number} id
+ */
+export const deleteSchedule = async (id) => {
+  const response = await api.delete(`/admin/notification-schedules/${id}`);
+  return response.data;
+};
+

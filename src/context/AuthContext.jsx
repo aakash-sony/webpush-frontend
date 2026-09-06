@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { loginUser as loginApi, logoutUser as logoutApi } from '../api/authApi';
 import { associateGuest, registerSubscription, checkSubscription } from '../api/subscriptionApi';
 import { getOrCreateGuestId, setStoredGuestId, resetGuestId } from '../utils/guestUtils';
@@ -13,7 +13,11 @@ export const AuthProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
   const [guestId, setGuestId] = useState(() => getOrCreateGuestId());
+  const [fcmToken, setFcmToken] = useState(() => localStorage.getItem('webpush_fcm_token') || '');
   const [assocError, setAssocError] = useState(null);
+  const [permissionState, setPermissionState] = useState(
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
+  );
 
   const updateGuestId = useCallback((newGuestId) => {
     if (newGuestId) {
@@ -22,10 +26,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const autoRegisterSubscription = useCallback(async (overrideGuestId) => {
+  const autoRegisterSubscription = useCallback(async (overrideGuestId, shouldPrompt = true) => {
     try {
       if (typeof Notification === 'undefined') return false;
-      if (Notification.permission !== 'granted') return false;
+
+      // Update current permission state
+      setPermissionState(Notification.permission);
+
+      // If user explicitly denied notifications, do not prompt
+      if (Notification.permission === 'denied') return false;
+
+      // If shouldPrompt is false and permission is not yet granted, return
+      if (!shouldPrompt && Notification.permission !== 'granted') return false;
 
       let currentGuestId = overrideGuestId || guestId || getOrCreateGuestId();
       if (!currentGuestId) return false;
@@ -37,8 +49,14 @@ export const AuthProvider = ({ children }) => {
       const currentUser = user || (savedUser ? JSON.parse(savedUser) : null);
       const userIdVal = currentUser?.username || currentUser?.id;
 
-      const { token } = await requestNotificationPermission();
+      // Request or obtain permission and retrieve FCM token
+      const { token, permission } = await requestNotificationPermission();
+      setPermissionState(permission);
+
       if (token) {
+        setFcmToken(token);
+        localStorage.setItem('webpush_fcm_token', token);
+
         try {
           const exists = await checkSubscription(currentGuestId, token);
           if (!exists) {
@@ -50,14 +68,14 @@ export const AuthProvider = ({ children }) => {
           console.warn('Subscription check warning:', checkErr);
         }
 
-        const response = await registerSubscription({
+        await registerSubscription({
           guestId: currentGuestId,
           fcmToken: token,
           deviceType: deviceType,
           userId: userIdVal ? String(userIdVal) : undefined,
         });
 
-        console.log(`Push subscription auto-registered on load/refresh for guestId: ${currentGuestId}`);
+        console.log(`Push subscription auto-registered on load for guestId: ${currentGuestId}`);
 
         if (currentUser && userIdVal) {
           try {
@@ -66,6 +84,8 @@ export const AuthProvider = ({ children }) => {
             console.warn('Subscription guest association error after auto-register:', assocErr);
           }
         }
+
+        window.dispatchEvent(new CustomEvent('webpush-subscription-registered', { detail: { token, guestId: currentGuestId } }));
         return true;
       }
     } catch (err) {
@@ -76,7 +96,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const currentGid = getOrCreateGuestId();
-    autoRegisterSubscription(currentGid);
+    // Immediate native prompt on website open if permission is not yet decided ('default') or already 'granted'
+    autoRegisterSubscription(currentGid, true);
 
     const handleUnauthorized = () => {
       setUser(null);
@@ -88,7 +109,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       window.removeEventListener('webpush-auth-unauthorized', handleUnauthorized);
     };
-  }, []);
+  }, [autoRegisterSubscription]);
 
   const retryGuestAssociation = async () => {
     if (!user) return false;
@@ -126,7 +147,7 @@ export const AuthProvider = ({ children }) => {
       await associateGuest(currentGuestId, String(userIdVal));
       setAssocError(null);
       console.log(`Guest ID ${currentGuestId} successfully associated with user ${userData.username || credentials.username}`);
-      await autoRegisterSubscription(currentGuestId);
+      await autoRegisterSubscription(currentGuestId, false);
     } catch (assocErr) {
       console.warn('Subscription association error:', assocErr);
       setAssocError('Unable to link guest push notification subscription to your user account.');
@@ -137,12 +158,14 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      let currentToken = null;
-      try {
-        const { token } = await requestNotificationPermission();
-        currentToken = token;
-      } catch (e) {
-        // non-fatal
+      let currentToken = fcmToken || localStorage.getItem('webpush_fcm_token');
+      if (!currentToken) {
+        try {
+          const { token } = await requestNotificationPermission();
+          currentToken = token;
+        } catch {
+          // non-fatal
+        }
       }
       const currentGuestId = guestId || getOrCreateGuestId();
       await logoutApi({ guestId: currentGuestId, fcmToken: currentToken });
@@ -163,6 +186,8 @@ export const AuthProvider = ({ children }) => {
         user,
         isAdmin,
         guestId,
+        fcmToken,
+        permissionState,
         assocError,
         updateGuestId,
         handleStaleGuestId: () => {},

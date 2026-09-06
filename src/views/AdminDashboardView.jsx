@@ -5,6 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
 import EmptyState from '../components/EmptyState';
 import StatusBadge from '../components/StatusBadge';
+import EditTemplateModal from '../components/EditTemplateModal';
 
 const AdminDashboardView = () => {
   const [viewMode, setViewMode] = useState('dispatch'); // 'dispatch' | 'overview'
@@ -21,6 +22,12 @@ const AdminDashboardView = () => {
   const [selectedGuestIds, setSelectedGuestIds] = useState([]);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  const [customBody, setCustomBody] = useState('');
+
+  const chosenTemplate = templates.find(
+    (t, idx) => String(t.id || idx) === String(selectedTemplateId)
+  );
 
   // UI Feedback states
   const [validationError, setValidationError] = useState(null);
@@ -98,8 +105,53 @@ const AdminDashboardView = () => {
     setSelectedGuestIds([]);
     setSelectedUserIds([]);
     setSelectedTemplateId('');
+    setCustomTitle('');
+    setCustomBody('');
     setValidationError(null);
     setDispatchFeedback(null);
+  };
+
+  const handleSelectTemplate = (tId) => {
+    setSelectedTemplateId(tId);
+    const tpl = templates.find((t, idx) => String(t.id || idx) === String(tId));
+    if (tpl) {
+      setCustomTitle(tpl.title || '');
+      setCustomBody(tpl.bodyTemplate || tpl.body || '');
+    }
+  };
+
+  const handleResetToTemplateDefault = () => {
+    const tpl = templates.find((t, idx) => String(t.id || idx) === String(selectedTemplateId));
+    if (tpl) {
+      setCustomTitle(tpl.title || '');
+      setCustomBody(tpl.bodyTemplate || tpl.body || '');
+    }
+  };
+
+  // --- Template Edit Popup Handlers ---
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [modalTargetTemplate, setModalTargetTemplate] = useState(null);
+
+  const handleOpenEditModal = (tpl) => {
+    const tId = String(tpl.id || '');
+    if (String(selectedTemplateId) !== tId) {
+      setSelectedTemplateId(tId);
+      setCustomTitle(tpl.title || '');
+      setCustomBody(tpl.bodyTemplate || tpl.body || '');
+    }
+    setModalTargetTemplate(tpl);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveTemplateCustomization = ({ title, body }) => {
+    setCustomTitle(title);
+    setCustomBody(body);
+    setIsEditModalOpen(false);
+  };
+
+  const handleOverviewEditTemplate = (tpl) => {
+    setViewMode('dispatch');
+    handleOpenEditModal(tpl);
   };
 
   // --- Send Notification UI Trigger ---
@@ -132,10 +184,24 @@ const AdminDashboardView = () => {
       (t, idx) => String(t.id || idx) === String(selectedTemplateId)
     );
 
+    const defaultTitle = chosenTemplate?.title || 'Notification Template';
+    const defaultBody = chosenTemplate?.bodyTemplate || chosenTemplate?.body || '';
+    const finalTitle = customTitle.trim() || defaultTitle;
+    const finalBody = customBody.trim() || defaultBody;
+    const isCustomized = (customTitle.trim() !== defaultTitle) || (customBody.trim() !== defaultBody);
+
     setSending(true);
 
     try {
-      const response = await sendNotification({ userIds, guestIds, templateId });
+      const response = await sendNotification({
+        userIds,
+        guestIds,
+        templateId,
+        title: finalTitle,
+        body: finalBody,
+        description: finalBody,
+        bodyTemplate: finalBody,
+      });
 
       setDispatchFeedback({
         message: response.message || 'Notification processed by server.',
@@ -145,7 +211,7 @@ const AdminDashboardView = () => {
         tokensFound: response.tokensFound ?? 0,
         notificationsSent: response.notificationsSent ?? 0,
         notificationsFailed: response.notificationsFailed ?? 0,
-        templateTitle: chosenTemplate?.title || 'Notification Template',
+        templateTitle: isCustomized ? `${finalTitle} (Custom Message)` : defaultTitle,
         timestamp: new Date().toLocaleTimeString(),
       });
 
@@ -153,6 +219,8 @@ const AdminDashboardView = () => {
       setSelectedGuestIds([]);
       setSelectedUserIds([]);
       setSelectedTemplateId('');
+      setCustomTitle('');
+      setCustomBody('');
     } catch (err) {
       console.error('Send notification error:', err);
       const errMsg =
@@ -512,7 +580,7 @@ const AdminDashboardView = () => {
                       return (
                         <div
                           key={tId}
-                          onClick={() => setSelectedTemplateId(tId)}
+                          onClick={() => handleSelectTemplate(tId)}
                           className={`selection-card p-3 ${isSelected ? 'selected' : ''}`}
                         >
                           <div className="d-flex align-items-start gap-3">
@@ -522,7 +590,7 @@ const AdminDashboardView = () => {
                               name="notificationTemplateRadio"
                               id={`template-radio-${tId}`}
                               checked={isSelected}
-                              onChange={() => setSelectedTemplateId(tId)}
+                              onChange={() => handleSelectTemplate(tId)}
                             />
                             <div className="flex-grow-1">
                               <div className="d-flex justify-content-between align-items-center mb-1">
@@ -532,9 +600,24 @@ const AdminDashboardView = () => {
                                 >
                                   {tpl.title || 'Untitled Template'}
                                 </label>
-                                <span className="badge bg-dark border border-secondary text-slate-400 font-monospace small">
-                                  #{tpl.id || idx + 1}
-                                </span>
+                                <div className="d-flex align-items-center gap-1.5">
+                                  <span className="badge bg-dark border border-secondary text-slate-300 font-monospace small">
+                                    #{tpl.id || idx + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm edit-template-btn rounded-circle p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
+                                    style={{ width: '28px', height: '28px' }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditModal(tpl);
+                                    }}
+                                    title="Edit notification message for this template"
+                                    aria-label={`Edit template #${tpl.id || idx + 1}`}
+                                  >
+                                    <i className="bi bi-pencil-fill" style={{ fontSize: '0.75rem' }}></i>
+                                  </button>
+                                </div>
                               </div>
                               <p className="text-slate-400 small mb-0 line-clamp-2">
                                 {tpl.bodyTemplate || tpl.body || 'Standard notification message payload.'}
@@ -724,9 +807,21 @@ const AdminDashboardView = () => {
                           <div className="card bg-dark border border-secondary border-opacity-25 h-100 rounded-3 shadow-sm">
                             <div className="card-body p-4">
                               <div className="d-flex justify-content-between align-items-center mb-2">
-                                <span className="badge bg-primary bg-opacity-20 text-primary border border-primary border-opacity-25 rounded-pill px-2.5 py-1">
-                                  ID #{tpl.id || idx + 1}
-                                </span>
+                                <div className="d-flex align-items-center gap-1.5">
+                                  <span className="badge bg-primary bg-opacity-20 text-primary border border-primary border-opacity-25 rounded-pill px-2.5 py-1">
+                                    ID #{tpl.id || idx + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm edit-template-btn rounded-circle p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
+                                    style={{ width: '26px', height: '26px' }}
+                                    onClick={() => handleOverviewEditTemplate(tpl)}
+                                    title="Edit and dispatch this template"
+                                    aria-label={`Edit and dispatch template #${tpl.id || idx + 1}`}
+                                  >
+                                    <i className="bi bi-pencil-fill" style={{ fontSize: '0.7rem' }}></i>
+                                  </button>
+                                </div>
                                 <StatusBadge
                                   type={tpl.active ? 'success' : 'secondary'}
                                   text={tpl.active ? 'Active' : 'Inactive'}
@@ -750,6 +845,17 @@ const AdminDashboardView = () => {
           </div>
         </div>
       )}
+
+      {/* Template Edit Popup Modal */}
+      <EditTemplateModal
+        isOpen={isEditModalOpen}
+        template={modalTargetTemplate || chosenTemplate}
+        initialTitle={customTitle}
+        initialBody={customBody}
+        onSave={handleSaveTemplateCustomization}
+        onClose={() => setIsEditModalOpen(false)}
+        onReset={handleResetToTemplateDefault}
+      />
     </div>
   );
 };

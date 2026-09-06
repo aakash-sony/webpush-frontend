@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { formatRelativeTime, formatDateTime } from '../utils/dateUtils';
 
 const NotificationItem = ({ notification, onMarkAsRead }) => {

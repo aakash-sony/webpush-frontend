@@ -2,12 +2,12 @@ import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
-    apiKey: "AIzaSyB7OgY2cd9axnhoo9Uq5sOIznWfHpXYe80",
-  authDomain: "push-notification-5366b.firebaseapp.com",
-  projectId: "push-notification-5366b",
-  storageBucket: "push-notification-5366b.firebasestorage.app",
-  messagingSenderId: "496469641293",
-  appId: "1:496469641293:web:ea2560c7d686fd55eef404"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyB7OgY2cd9axnhoo9Uq5sOIznWfHpXYe80",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "push-notification-5366b.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "push-notification-5366b",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "push-notification-5366b.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "496469641293",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:496469641293:web:ea2560c7d686fd55eef404",
 };
 
 // Initialize Firebase App
@@ -26,12 +26,13 @@ export const getFirebaseMessaging = async () => {
   return null;
 };
 
-// VAPID key placeholder (User will configure or provide)
-const VAPID_KEY = "BKbuS11fAv8v_dguuftH5vt7J4DWDeH-EE-HIkzQNk3xu1zX-mvocKIMmdP7seZfAaorKj_r8kpDwA08Htpj6oM";
+const VAPID_KEY =
+  import.meta.env.VITE_FIREBASE_VAPID_KEY ||
+  "BKbuS11fAv8v_dguuftH5vt7J4DWDeH-EE-HIkzQNk3xu1zX-mvocKIMmdP7seZfAaorKj_r8kpDwA08Htpj6oM";
 
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
-    throw new Error('This browser does not support desktop notification');
+    throw new Error('This browser does not support desktop notifications');
   }
 
   const permission = await Notification.requestPermission();
@@ -44,10 +45,11 @@ export const requestNotificationPermission = async () => {
     throw new Error('Firebase Messaging is not supported in this browser environment');
   }
 
-  // Register service worker if not already registered
+  // Register or obtain service worker registration
   let swRegistration;
   if ('serviceWorker' in navigator) {
     swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    await navigator.serviceWorker.ready;
   }
 
   try {
@@ -57,7 +59,7 @@ export const requestNotificationPermission = async () => {
     });
     return { token: currentToken, permission };
   } catch (err) {
-    console.error('An error occurred while retrieving token: ', err);
+    console.error('An error occurred while retrieving token:', err);
     throw err;
   }
 };

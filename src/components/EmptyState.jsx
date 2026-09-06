@@ -1,4 +1,3 @@
-import React from 'react';
 
 const EmptyState = ({ title = 'No Data Found', message = 'There are no items to display at this time.', icon = 'inbox' }) => {
   return (

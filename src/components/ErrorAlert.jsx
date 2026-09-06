@@ -1,5 +1,3 @@
-import React from 'react';
-
 const ErrorAlert = ({ message, onClose }) => {
   if (!message) return null;
 
@@ -15,7 +13,7 @@ const ErrorAlert = ({ message, onClose }) => {
       </ul>
     );
   } else if (typeof message === 'object') {
-    const errorList = Object.entries(message).map(([field, msg]) => `${msg}`);
+    const errorList = Object.values(message).map((msg) => `${msg}`);
     content = (
       <ul className="mb-0 ps-3">
         {errorList.map((err, idx) => (

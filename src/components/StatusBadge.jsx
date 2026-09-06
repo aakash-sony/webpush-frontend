@@ -1,4 +1,3 @@
-import React from 'react';
 
 const StatusBadge = ({ type, text, icon }) => {
   const getBadgeStyle = () => {

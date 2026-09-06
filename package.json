@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
-    "lint": "eslint .",
+    "lint": "node -e \"require('util').styleText = (fmt, txt) => txt; require('./node_modules/eslint/bin/eslint.js')\" -- .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -32,6 +32,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.4",
     "globals": "^17.11.0",
+    "happy-dom": "^20.14.0",
     "jsdom": "^30.0.1",
     "vite": "^5.4.21",
     "vitest": "^1.6.0"

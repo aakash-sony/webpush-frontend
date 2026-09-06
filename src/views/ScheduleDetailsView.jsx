@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getScheduleById, updateScheduleStatus } from '../api/scheduleApi';
+import { getScheduleById, updateScheduleStatus, deleteSchedule } from '../api/scheduleApi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
 import { ScheduleTypeBadge, ActiveStatusBadge } from '../components/ScheduleStatusBadge';
@@ -13,9 +13,11 @@ const ScheduleDetailsView = () => {
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchScheduleDetails = async () => {
+  const fetchScheduleDetails = useCallback(async () => {
     setError(null);
     try {
       const data = await getScheduleById(id);
@@ -27,11 +29,11 @@ const ScheduleDetailsView = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchScheduleDetails();
-  }, [id]);
+  }, [fetchScheduleDetails]);
 
   const handleToggleStatus = async () => {
     if (!schedule || updating) return;
@@ -47,6 +49,22 @@ const ScheduleDetailsView = () => {
       setError(msg);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!schedule || deleting) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteSchedule(schedule.id);
+      navigate('/admin/notification-schedules');
+    } catch (err) {
+      console.error('Error deleting schedule:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to delete schedule.';
+      setError(msg);
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -85,7 +103,7 @@ const ScheduleDetailsView = () => {
           </p>
         </div>
 
-        <div className="d-flex align-items-center gap-2 mt-3 mt-md-0">
+        <div className="d-flex align-items-center gap-2 mt-3 mt-md-0 flex-wrap">
           <Link
             to={`/admin/notification-schedules/${schedule.id}/edit`}
             className="btn btn-warning rounded-pill px-3.5 py-2 fw-semibold d-inline-flex align-items-center gap-1.5"
@@ -96,9 +114,9 @@ const ScheduleDetailsView = () => {
 
           <button
             onClick={handleToggleStatus}
-            disabled={updating}
+            disabled={updating || deleting}
             className={`btn rounded-pill px-3.5 py-2 fw-semibold d-inline-flex align-items-center gap-1.5 ${
-              schedule.active ? 'btn-outline-danger' : 'btn-outline-success'
+              schedule.active ? 'btn-outline-warning' : 'btn-outline-success'
             }`}
           >
             {updating ? (
@@ -109,6 +127,16 @@ const ScheduleDetailsView = () => {
             <span>{schedule.active ? 'Disable Schedule' : 'Enable Schedule'}</span>
           </button>
 
+          <button
+            onClick={() => setConfirmDelete(true)}
+            disabled={updating || deleting}
+            className="btn btn-outline-danger rounded-pill px-3.5 py-2 fw-semibold d-inline-flex align-items-center gap-1.5"
+            title="Delete this Schedule"
+          >
+            <i className="bi bi-trash3"></i>
+            <span>Delete</span>
+          </button>
+
           <Link
             to="/admin/notification-schedules"
             className="btn btn-outline-secondary rounded-pill px-3.5 py-2 fw-semibold small"
@@ -117,6 +145,54 @@ const ScheduleDetailsView = () => {
           </Link>
         </div>
       </div>
+
+      {/* Delete Confirmation Card */}
+      {confirmDelete && (
+        <div className="alert alert-danger border-danger border-opacity-50 glass-card shadow-lg rounded-4 p-4 mb-4">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-3">
+              <div className="bg-danger bg-opacity-20 text-danger p-3 rounded-circle d-flex align-items-center justify-content-center">
+                <i className="bi bi-trash3-fill fs-3"></i>
+              </div>
+              <div>
+                <h5 className="fw-bold text-slate-100 mb-1">Delete Schedule #{schedule.id}?</h5>
+                <p className="text-slate-300 small mb-0">
+                  Are you sure you want to permanently delete schedule <strong>#{schedule.id}</strong> (
+                  <em>{schedule.templateTitle || `Template #${schedule.templateId}`}</em>)? This action cannot be reversed.
+                </p>
+              </div>
+            </div>
+            <div className="d-flex align-items-center gap-2 ms-auto">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary rounded-pill px-3.5 py-1.5"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-danger rounded-pill px-4 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" role="status"></span>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-trash3-fill"></i>
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="row g-4">
         {/* Main Details Card */}

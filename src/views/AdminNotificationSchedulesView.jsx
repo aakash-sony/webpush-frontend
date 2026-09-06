@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getSchedules, updateScheduleStatus } from '../api/scheduleApi';
+import { getSchedules, updateScheduleStatus, deleteSchedule } from '../api/scheduleApi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
 import EmptyState from '../components/EmptyState';
@@ -11,8 +11,11 @@ const AdminNotificationSchedulesView = () => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
   const [confirmToggleSchedule, setConfirmToggleSchedule] = useState(null);
+  const [confirmDeleteSchedule, setConfirmDeleteSchedule] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchSchedules = async () => {
     setError(null);
@@ -48,6 +51,24 @@ const AdminNotificationSchedulesView = () => {
       setError(msg);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleDeleteSchedule = async (schedule) => {
+    setDeletingId(schedule.id);
+    setError(null);
+    try {
+      await deleteSchedule(schedule.id);
+      setSchedules((prev) => prev.filter((s) => s.id !== schedule.id));
+      setConfirmDeleteSchedule(null);
+      setSuccessMessage(`Schedule #${schedule.id} (${schedule.templateTitle || 'Schedule'}) deleted successfully.`);
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('Error deleting schedule:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to delete notification schedule.';
+      setError(msg);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -121,6 +142,62 @@ const AdminNotificationSchedulesView = () => {
       </div>
 
       <ErrorAlert message={error} onClose={() => setError(null)} />
+
+      {successMessage && (
+        <div className="alert alert-success alert-dismissible fade show border-0 shadow-sm d-flex align-items-center gap-2 mb-4 rounded-4 bg-success bg-opacity-20 text-slate-100 border-start border-success border-4" role="alert">
+          <i className="bi bi-check-circle-fill text-success fs-4 flex-shrink-0"></i>
+          <div className="flex-grow-1 fw-medium">{successMessage}</div>
+          <button type="button" className="btn-close btn-close-white" onClick={() => setSuccessMessage('')}></button>
+        </div>
+      )}
+
+      {/* Delete Schedule Confirmation Modal / Card */}
+      {confirmDeleteSchedule && (
+        <div className="alert alert-danger border-danger border-opacity-50 glass-card shadow-lg rounded-4 p-4 mb-4">
+          <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-3">
+              <div className="bg-danger bg-opacity-20 text-danger p-3 rounded-circle d-flex align-items-center justify-content-center">
+                <i className="bi bi-trash3-fill fs-3"></i>
+              </div>
+              <div>
+                <h5 className="fw-bold text-slate-100 mb-1">Permanently Delete Schedule #{confirmDeleteSchedule.id}?</h5>
+                <p className="text-slate-300 small mb-0">
+                  Are you sure you want to delete schedule <strong>#{confirmDeleteSchedule.id}</strong> (
+                  <em>{confirmDeleteSchedule.templateTitle || `Template #${confirmDeleteSchedule.templateId}`}</em>)? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="d-flex align-items-center gap-2 ms-auto">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary rounded-pill px-3.5 py-1.5"
+                onClick={() => setConfirmDeleteSchedule(null)}
+                disabled={deletingId !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-danger rounded-pill px-4 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow"
+                onClick={() => handleDeleteSchedule(confirmDeleteSchedule)}
+                disabled={deletingId !== null}
+              >
+                {deletingId === confirmDeleteSchedule.id ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" role="status"></span>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-trash3-fill"></i>
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal Backdrop / Card */}
       {confirmToggleSchedule && (
@@ -229,10 +306,10 @@ const AdminNotificationSchedulesView = () => {
 
                         <button
                           onClick={() => setConfirmToggleSchedule(schedule)}
-                          disabled={updatingId === schedule.id}
+                          disabled={updatingId === schedule.id || deletingId === schedule.id}
                           className={`btn btn-sm rounded-circle p-1.5 ${
                             schedule.active
-                              ? 'btn-outline-danger'
+                              ? 'btn-outline-warning'
                               : 'btn-outline-success'
                           }`}
                           title={schedule.active ? 'Disable Schedule' : 'Enable Schedule'}
@@ -241,6 +318,19 @@ const AdminNotificationSchedulesView = () => {
                             <span className="spinner-border spinner-border-sm" role="status"></span>
                           ) : (
                             <i className={`bi ${schedule.active ? 'bi-pause-fill' : 'bi-play-fill'}`}></i>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => setConfirmDeleteSchedule(schedule)}
+                          disabled={updatingId === schedule.id || deletingId === schedule.id}
+                          className="btn btn-sm btn-outline-danger rounded-circle p-1.5"
+                          title="Delete Schedule"
+                        >
+                          {deletingId === schedule.id ? (
+                            <span className="spinner-border spinner-border-sm" role="status"></span>
+                          ) : (
+                            <i className="bi bi-trash3"></i>
                           )}
                         </button>
                       </div>

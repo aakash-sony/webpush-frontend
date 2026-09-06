@@ -17,7 +17,7 @@ api.interceptors.request.use(
         if (user && user.username) {
           config.headers['X-User-Username'] = user.username;
         }
-      } catch (e) {
+      } catch {
         // ignore error
       }
     }
