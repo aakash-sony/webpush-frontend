@@ -110,6 +110,11 @@ const EditTemplateModal = ({
                       {template.code}
                     </span>
                   )}
+                  {isCustomized && (
+                    <span className="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-30 extra-small rounded-pill">
+                      Customized
+                    </span>
+                  )}
                 </div>
                 <span className="text-slate-400 extra-small">
                   Customize notification text and preview real-time push appearance
@@ -165,7 +170,7 @@ const EditTemplateModal = ({
               </div>
 
               {/* Body & Description Field */}
-              <div className="mb-4">
+              <div className="mb-3">
                 <div className="d-flex justify-content-between align-items-center mb-1.5">
                   <label
                     htmlFor="modalCustomBody"
@@ -186,6 +191,39 @@ const EditTemplateModal = ({
                   placeholder="Enter notification body and description..."
                   required
                 />
+              </div>
+
+              {/* Push Notification Live Preview Box */}
+              <div className="mb-1">
+                <div className="d-flex justify-content-between align-items-center mb-1.5">
+                  <span className="text-slate-400 extra-small text-uppercase fw-bold tracking-wider">
+                    <i className="bi bi-bell-fill text-warning me-1"></i> Real-time Push Preview
+                  </span>
+                  <span className="badge bg-dark border border-secondary text-info extra-small">
+                    User / Guest View
+                  </span>
+                </div>
+                <div className="bg-black bg-opacity-60 border border-secondary border-opacity-30 rounded-3 p-3 shadow-sm">
+                  <div className="d-flex align-items-start gap-2.5">
+                    <div
+                      className="rounded-2 p-1.5 bg-primary bg-opacity-20 text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                      style={{ width: '32px', height: '32px' }}
+                    >
+                      <i className="bi bi-app-indicator fs-6"></i>
+                    </div>
+                    <div className="overflow-hidden flex-grow-1">
+                      <div className="d-flex align-items-center justify-content-between mb-0.5">
+                        <span className="text-slate-200 fw-bold small text-truncate d-block">
+                          {title.trim() || defaultTitle || 'Notification Title'}
+                        </span>
+                        <span className="text-slate-500 extra-small flex-shrink-0 ms-2">Just now</span>
+                      </div>
+                      <p className="text-slate-300 small mb-0 text-break">
+                        {body.trim() || defaultBody || 'Notification body and description preview...'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

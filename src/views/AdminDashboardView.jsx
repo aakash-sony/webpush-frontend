@@ -22,12 +22,29 @@ const AdminDashboardView = () => {
   const [selectedGuestIds, setSelectedGuestIds] = useState([]);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [customTitle, setCustomTitle] = useState('');
-  const [customBody, setCustomBody] = useState('');
+  // Store customizations per template: { [templateId]: { title: string, body: string } }
+  const [templateCustomizations, setTemplateCustomizations] = useState({});
 
   const chosenTemplate = templates.find(
-    (t, idx) => String(t.id || idx) === String(selectedTemplateId)
+    (t, idx) => String(t.id ?? idx) === String(selectedTemplateId)
   );
+
+  const getTemplateEffectiveData = useCallback((tpl) => {
+    if (!tpl) return { title: '', body: '', isCustomized: false };
+    const tId = String(tpl.id ?? '');
+    const custom = templateCustomizations[tId];
+    const defaultTitle = tpl.title || '';
+    const defaultBody = tpl.bodyTemplate || tpl.body || '';
+
+    if (custom) {
+      const title = custom.title !== undefined ? custom.title : defaultTitle;
+      const body = custom.body !== undefined ? custom.body : defaultBody;
+      const isCustomized = (title.trim() !== defaultTitle.trim()) || (body.trim() !== defaultBody.trim());
+      return { title, body, isCustomized };
+    }
+
+    return { title: defaultTitle, body: defaultBody, isCustomized: false };
+  }, [templateCustomizations]);
 
   // UI Feedback states
   const [validationError, setValidationError] = useState(null);
@@ -105,27 +122,22 @@ const AdminDashboardView = () => {
     setSelectedGuestIds([]);
     setSelectedUserIds([]);
     setSelectedTemplateId('');
-    setCustomTitle('');
-    setCustomBody('');
+    setTemplateCustomizations({});
     setValidationError(null);
     setDispatchFeedback(null);
   };
 
   const handleSelectTemplate = (tId) => {
-    setSelectedTemplateId(tId);
-    const tpl = templates.find((t, idx) => String(t.id || idx) === String(tId));
-    if (tpl) {
-      setCustomTitle(tpl.title || '');
-      setCustomBody(tpl.bodyTemplate || tpl.body || '');
-    }
+    setSelectedTemplateId(String(tId));
   };
 
-  const handleResetToTemplateDefault = () => {
-    const tpl = templates.find((t, idx) => String(t.id || idx) === String(selectedTemplateId));
-    if (tpl) {
-      setCustomTitle(tpl.title || '');
-      setCustomBody(tpl.bodyTemplate || tpl.body || '');
-    }
+  const handleResetTemplateCustomization = (tId) => {
+    const targetId = String(tId ?? selectedTemplateId);
+    setTemplateCustomizations((prev) => {
+      const next = { ...prev };
+      delete next[targetId];
+      return next;
+    });
   };
 
   // --- Template Edit Popup Handlers ---
@@ -133,19 +145,20 @@ const AdminDashboardView = () => {
   const [modalTargetTemplate, setModalTargetTemplate] = useState(null);
 
   const handleOpenEditModal = (tpl) => {
-    const tId = String(tpl.id || '');
-    if (String(selectedTemplateId) !== tId) {
-      setSelectedTemplateId(tId);
-      setCustomTitle(tpl.title || '');
-      setCustomBody(tpl.bodyTemplate || tpl.body || '');
-    }
+    const tId = String(tpl.id ?? '');
+    setSelectedTemplateId(tId);
     setModalTargetTemplate(tpl);
     setIsEditModalOpen(true);
   };
 
   const handleSaveTemplateCustomization = ({ title, body }) => {
-    setCustomTitle(title);
-    setCustomBody(body);
+    const targetTpl = modalTargetTemplate || chosenTemplate;
+    if (!targetTpl) return;
+    const tId = String(targetTpl.id ?? '');
+    setTemplateCustomizations((prev) => ({
+      ...prev,
+      [tId]: { title, body },
+    }));
     setIsEditModalOpen(false);
   };
 
@@ -180,15 +193,11 @@ const AdminDashboardView = () => {
     const templateId = Number(selectedTemplateId);
 
     // Find template details
-    const chosenTemplate = templates.find(
-      (t, idx) => String(t.id || idx) === String(selectedTemplateId)
+    const targetTemplate = templates.find(
+      (t, idx) => String(t.id ?? idx) === String(selectedTemplateId)
     );
 
-    const defaultTitle = chosenTemplate?.title || 'Notification Template';
-    const defaultBody = chosenTemplate?.bodyTemplate || chosenTemplate?.body || '';
-    const finalTitle = customTitle.trim() || defaultTitle;
-    const finalBody = customBody.trim() || defaultBody;
-    const isCustomized = (customTitle.trim() !== defaultTitle) || (customBody.trim() !== defaultBody);
+    const { title: finalTitle, body: finalBody, isCustomized } = getTemplateEffectiveData(targetTemplate);
 
     setSending(true);
 
@@ -211,7 +220,7 @@ const AdminDashboardView = () => {
         tokensFound: response.tokensFound ?? 0,
         notificationsSent: response.notificationsSent ?? 0,
         notificationsFailed: response.notificationsFailed ?? 0,
-        templateTitle: isCustomized ? `${finalTitle} (Custom Message)` : defaultTitle,
+        templateTitle: isCustomized ? `${finalTitle} (Custom Message)` : finalTitle,
         timestamp: new Date().toLocaleTimeString(),
       });
 
@@ -219,8 +228,7 @@ const AdminDashboardView = () => {
       setSelectedGuestIds([]);
       setSelectedUserIds([]);
       setSelectedTemplateId('');
-      setCustomTitle('');
-      setCustomBody('');
+      setTemplateCustomizations({});
     } catch (err) {
       console.error('Send notification error:', err);
       const errMsg =
@@ -575,8 +583,9 @@ const AdminDashboardView = () => {
                 ) : (
                   <div className="d-flex flex-column gap-3 mb-4">
                     {templates.map((tpl, idx) => {
-                      const tId = String(tpl.id || idx);
+                      const tId = String(tpl.id ?? idx);
                       const isSelected = selectedTemplateId === tId;
+                      const { title: effectiveTitle, body: effectiveBody, isCustomized } = getTemplateEffectiveData(tpl);
                       return (
                         <div
                           key={tId}
@@ -594,16 +603,38 @@ const AdminDashboardView = () => {
                             />
                             <div className="flex-grow-1">
                               <div className="d-flex justify-content-between align-items-center mb-1">
-                                <label
-                                  htmlFor={`template-radio-${tId}`}
-                                  className="fw-bold text-slate-100 mb-0 cursor-pointer"
-                                >
-                                  {tpl.title || 'Untitled Template'}
-                                </label>
+                                <div className="d-flex align-items-center gap-2 flex-wrap">
+                                  <label
+                                    htmlFor={`template-radio-${tId}`}
+                                    className="fw-bold text-slate-100 mb-0 cursor-pointer"
+                                  >
+                                    {effectiveTitle || 'Untitled Template'}
+                                  </label>
+                                  {isCustomized && (
+                                    <span className="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-30 rounded-pill px-2 py-0.5 extra-small fw-semibold">
+                                      <i className="bi bi-pencil-fill me-1"></i> Customized
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="d-flex align-items-center gap-1.5">
                                   <span className="badge bg-dark border border-secondary text-slate-300 font-monospace small">
                                     #{tpl.id || idx + 1}
                                   </span>
+                                  {isCustomized && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-secondary rounded-circle p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                                      style={{ width: '26px', height: '26px' }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleResetTemplateCustomization(tId);
+                                      }}
+                                      title="Reset to default template text"
+                                      aria-label={`Reset template #${tpl.id || idx + 1} to default`}
+                                    >
+                                      <i className="bi bi-arrow-counterclockwise" style={{ fontSize: '0.7rem' }}></i>
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     className="btn btn-sm edit-template-btn rounded-circle p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
@@ -619,8 +650,8 @@ const AdminDashboardView = () => {
                                   </button>
                                 </div>
                               </div>
-                              <p className="text-slate-400 small mb-0 line-clamp-2">
-                                {tpl.bodyTemplate || tpl.body || 'Standard notification message payload.'}
+                              <p className={`small mb-0 line-clamp-2 ${isCustomized ? 'text-warning text-opacity-90' : 'text-slate-400'}`}>
+                                {effectiveBody || 'Standard notification message payload.'}
                               </p>
                             </div>
                           </div>
@@ -645,9 +676,9 @@ const AdminDashboardView = () => {
                   </div>
                   <div className="d-flex justify-content-between text-slate-200 small">
                     <span>Selected Template:</span>
-                    <strong className="text-warning">
-                      {selectedTemplateId
-                        ? templates.find((t, idx) => String(t.id || idx) === String(selectedTemplateId))?.title || 'Selected'
+                    <strong className="text-warning text-end">
+                      {chosenTemplate
+                        ? `${getTemplateEffectiveData(chosenTemplate).title}${getTemplateEffectiveData(chosenTemplate).isCustomized ? ' (Customized)' : ''}`
                         : 'None'}
                     </strong>
                   </div>
@@ -847,15 +878,25 @@ const AdminDashboardView = () => {
       )}
 
       {/* Template Edit Popup Modal */}
-      <EditTemplateModal
-        isOpen={isEditModalOpen}
-        template={modalTargetTemplate || chosenTemplate}
-        initialTitle={customTitle}
-        initialBody={customBody}
-        onSave={handleSaveTemplateCustomization}
-        onClose={() => setIsEditModalOpen(false)}
-        onReset={handleResetToTemplateDefault}
-      />
+      {(() => {
+        const activeTarget = modalTargetTemplate || chosenTemplate;
+        const targetData = activeTarget ? getTemplateEffectiveData(activeTarget) : { title: '', body: '' };
+        return (
+          <EditTemplateModal
+            isOpen={isEditModalOpen}
+            template={activeTarget}
+            initialTitle={targetData.title}
+            initialBody={targetData.body}
+            onSave={handleSaveTemplateCustomization}
+            onClose={() => setIsEditModalOpen(false)}
+            onReset={() => {
+              if (activeTarget) {
+                handleResetTemplateCustomization(activeTarget.id);
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };
